@@ -1,8 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios');
 const mysql = require('mysql2');
 const bcrypt = require('bcrypt');
+const axios = require('axios'); // Importar axios para realizar solicitudes HTTP
 require('dotenv').config();
 
 // Crea una instancia de Express
@@ -33,6 +33,12 @@ db.connect((err) => {
 // Rutas de autenticación
 app.post('/api/register', async (req, res) => {
     const { username, email, password } = req.body;
+
+    // Validar datos de entrada
+    if (!username || !email || !password) {
+        return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     db.query('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', [username, email, hashedPassword], (err, results) => {
@@ -46,6 +52,11 @@ app.post('/api/register', async (req, res) => {
 
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
+
+    // Validar datos de entrada
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
+    }
 
     db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
         if (err) {
@@ -64,17 +75,55 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// Rutas de noticias
-app.get('/api/news', async (req, res) => {
-    const keyword = req.query.keyword || '';
-    const url = `https://newsapi.org/v2/everything?q=${keyword}&apiKey=${process.env.NEWS_API_KEY}`;
+// Endpoint para obtener todas las noticias desde la base de datos
+app.get('/api/news', (req, res) => {
+    db.query('SELECT * FROM news', (err, results) => {
+        if (err) {
+            console.error('Error fetching news:', err);
+            return res.status(500).json({ error: 'Error fetching news.' });
+        }
+        res.json(results);
+    });
+});
+
+// Endpoint para crear una nueva noticia en la base de datos
+app.post('/api/news', (req, res) => {
+    const { user_id, title, description, image_url } = req.body;
+
+    if (!user_id || !title || !description) {
+        return res.status(400).json({ error: 'Los campos user_id, title y description son obligatorios.' });
+    }
+
+    db.query('INSERT INTO news (user_id, title, description, image_url) VALUES (?, ?, ?, ?)', [user_id, title, description, image_url], (err, results) => {
+        if (err) {
+            console.error('Error creating news:', err);
+            return res.status(500).json({ error: 'Error creating news.' });
+        }
+        res.status(201).json({ message: 'News created successfully!', newsId: results.insertId });
+    });
+});
+
+// Endpoint para obtener noticias desde la API externa
+app.get('/api/external-news', async (req, res) => {
+    const keyword = req.query.q || 'tecnología'; // Cambia 'tecnología' por un valor predeterminado si no se proporciona un término de búsqueda
+    const apiKey = process.env.NEWS_API_KEY; // Cambiado a NEWS_API_KEY
 
     try {
-        const response = await axios.get(url);
-        res.json(response.data);
+        const response = await axios.get(`https://newsapi.org/v2/everything?q=${keyword}&apiKey=${apiKey}`);
+        const articles = response.data.articles;
+
+        // Devuelve solo algunos campos para simplificar
+        const formattedArticles = articles.map(article => ({
+            title: article.title,
+            description: article.description,
+            url: article.url,
+            imageUrl: article.urlToImage,
+        }));
+
+        res.json(formattedArticles);
     } catch (error) {
-        console.error('Error fetching news:', error);
-        res.status(500).json({ error: 'Error fetching news.' });
+        console.error('Error fetching external news:', error);
+        res.status(500).json({ error: 'Error fetching external news.' });
     }
 });
 
@@ -82,4 +131,3 @@ app.get('/api/news', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-s
