@@ -2,8 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
 const bcrypt = require('bcrypt');
-const axios = require('axios'); // Importar axios para realizar solicitudes HTTP
+const axios = require('axios');
 require('dotenv').config();
+
+require('./config/initDB');
 
 // Crea una instancia de Express
 const app = express();
@@ -100,6 +102,44 @@ app.post('/api/news', (req, res) => {
             return res.status(500).json({ error: 'Error creating news.' });
         }
         res.status(201).json({ message: 'News created successfully!', newsId: results.insertId });
+    });
+});
+
+// Endpoint para editar una noticia
+app.put('/api/news/:id', (req, res) => {
+    const { id } = req.params;
+    const { title, description, image_url } = req.body;
+
+    // Validar datos de entrada
+    if (!title || !description) {
+        return res.status(400).json({ error: 'Los campos title y description son obligatorios.' });
+    }
+
+    db.query('UPDATE news SET title = ?, description = ?, image_url = ? WHERE id = ?', [title, description, image_url, id], (err, results) => {
+        if (err) {
+            console.error('Error updating news:', err);
+            return res.status(500).json({ error: 'Error updating news.' });
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ error: 'News not found.' });
+        }
+        res.json({ message: 'News updated successfully!' });
+    });
+});
+
+// Endpoint para eliminar una noticia
+app.delete('/api/news/:id', (req, res) => {
+    const { id } = req.params;
+
+    db.query('DELETE FROM news WHERE id = ?', [id], (err, results) => {
+        if (err) {
+            console.error('Error deleting news:', err);
+            return res.status(500).json({ error: 'Error deleting news.' });
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ error: 'News not found.' });
+        }
+        res.json({ message: 'News deleted successfully!' });
     });
 });
 
