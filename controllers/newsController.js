@@ -1,4 +1,4 @@
-const News = require('../models/newsModel'); // Ajusta la ruta según tu estructura
+const News = require('./models/newsMongoose'); 
 
 // Obtener todas las noticias
 const getAllNews = async (req, res) => {
