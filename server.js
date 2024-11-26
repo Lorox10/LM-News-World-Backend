@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 const axios = require('axios');
 require('dotenv').config();
 
-require('./config/initDB');
+require('./config/initializeDB');
 
 // Crea una instancia de Express
 const app = express();
